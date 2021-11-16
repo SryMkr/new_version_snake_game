@@ -6,10 +6,7 @@ from words_handling_library import read_taskwords_xls
 from Other_library import print_text
 
 '''
-2：进入下一个问题
-3：判断游戏结束的条件
-
-
+复习模式应该怎么设置？ 如何和学习模式相结合
 '''
 
 
@@ -20,6 +17,7 @@ class Trivia(object):
         self.task_words = []
         self.words_dic = []
         self.dic = []
+        self.running = True
         self.current = 0  # 当前正在拼写的单词
         self.corrected = False  # 回答正确
         self.failed = False  # 回答错误
@@ -76,10 +74,13 @@ class Trivia(object):
         self.correct = question_answers_index_list[number][4] + 1  # 获得当前的正确选项
 
         if self.corrected:
-            print_text(self.FONT1, 230, 380, "回答正确!")
-            print_text(self.FONT1, 170, 420, "请按 Enter 回答下一个问题")
+            print_text(self.FONT1, 210, 400, "回答正确!")
+            if self.current + 1 < len(self.words_list):
+                print_text(self.FONT1, 100, 440, "请按 Enter 回答下一个问题")
+            else:
+                print_text(self.FONT1, 100, 440, "学习结束，请按 ESC 返回上一菜单")
         elif self.failed:
-            print_text(self.FONT1, 220, 380, "请再仔细想想")
+            print_text(self.FONT1, 210, 400, "请再仔细想想")
 
     # 获取键盘的输入
     def handle_input(self, number):
@@ -97,12 +98,10 @@ class Trivia(object):
             self.current += 1
 
 
-
 def English_review(screen):
-    running = True
     trivia = Trivia('words_pool/three_grade/three_grade_known.xls', 3)  # 读取文件
     question_answers_index_list = trivia.question_answers()
-    while running:
+    while trivia.running:
         Eng_review = pygame.image.load("Game_Pictures/game_intro.jpg").convert_alpha()  # load background picture
         game_intro = pygame.transform.scale(Eng_review, (30 * 22, 30 * 22))  # scale to display
         screen.blit(game_intro, (0, 0))  # draw background picture
@@ -110,7 +109,7 @@ def English_review(screen):
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    trivia.running = False
                 elif event.key == pygame.K_1:
                     trivia.handle_input(1)
                 elif event.key == pygame.K_2:
@@ -119,8 +118,6 @@ def English_review(screen):
                     trivia.handle_input(3)
                 elif event.key == pygame.K_4:
                     trivia.handle_input(4)
-                elif event.key == pygame.K_RETURN:
+                elif event.key == pygame.K_RETURN and trivia.current + 1 < len(trivia.words_list):
                     trivia.next_question(screen)
-                    if trivia.current >= len(trivia.words_list):
-                        print_text(trivia.FONT1, 300, 400, "学习结束，请按ESC返回上一菜单")
         pygame.display.update()
