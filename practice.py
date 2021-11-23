@@ -1,87 +1,67 @@
-'''
+"""
 author SryMkr
-date 2021.8
-final version of Snake English Game
-复习模式和学习模式的切换会出现问题
-1： 但是要记录下来再游戏结束收显示玩家在哪里拼错了,
-3： 选择题
-2： 加减分数显示
-3： 个性化游戏
-'''
+date 2021.11.22
+1：但是要记录下来再游戏结束收显示玩家在哪里拼错了, 迷惑字母
+2：每个单词需要记录的数据基于大数据分析,然后给出合适的难度
+3：个性化游戏
+4：简化游戏程序
+"""
 
-# 每个单词需要记录的数据基于大数据分析,然后给出合适的难度
-
-
-# import packages
-import pygame
+# import necessary packages
 from English_Vocabulary_Review import English_review
 from Snake_body_library import *
 from game_introducation import *
 import time, datetime, sys
 from words_handling_library import *
-# 导入得出音标的函数
 from words_phonetic_library import get_word_pho
 import pygame_menu
 
-# 玩家启动游戏的日期 (year-month-day)
-TODAY = datetime.date.today()
-# 游戏运行开始计时为 0
-t0 = time.perf_counter()
-# 玩家玩了多长时间
-player_played_game = 0
-# 玩家本次游戏得了多少分
-current_score = 0
-# 玩家本次游戏记了多少单词
-current_remembered_words = 0
+# ------------------------------------------------------------------------------------------
+# 定义一些全局变量，以及全局要使用的东西
+t0 = time.perf_counter()  # 游戏运行开始计时为 0，为了计算玩家玩了多长时间
+current_score = 0  # 玩家每轮游戏得多少分
+current_remembered_words = 0  # 结束游戏之前，玩家一共记了多少单词
 # 总记忆单词数，总共玩游戏的时间，历史最高得分，历史最高记忆的单词数
 total_remembered_words, total_spent_words, highest_score, highest_words = \
     read_excel_game_record('saved_files/game_record.xls')
-record_list = [total_remembered_words, total_spent_words, highest_score, highest_words]
-
-# 本次游戏已经记忆的单词列表（英文）
+record_list = [total_remembered_words, total_spent_words, highest_score, highest_words]  # 把读出的记录放到一个列表中
+# 初始化本轮游戏已经记忆的单词列表（英文）
 words_list_known = []
-# 本次游戏已经记忆的单词列表（汉语）
+# 初始化本轮游戏已经记忆的单词列表（汉语）
 task_words_known = []
-# 记录玩家的拼写
+# 初始化玩家的拼写
 player_spelling = []
 # 要记录这个单词已经拼写到哪了
 spell_list = list()
-# 玩家选择此次学习多少单词
-train_words_number = 9
 # 要记录玩家已经练习多少个单词了，要是练习玩了要游戏结束
 words_number = 0
-
+# 追踪蛇已经吃的字母，正确和错误都要记录
+eating_spelling = list()
+# 游戏结束开关
+game_over = False
 # ------------------------------------------------------------------------------------------
+
 # 对游戏屏幕，标题，字体的初始化
-# 设置屏幕有多少30像素
-screen_grid_width = 22
-screen_grid_high = 22
-# initialize some modules
-pygame.init()
+screen_grid_width = 22  # 设置屏幕宽有多少30像素
+screen_grid_high = 22  # 设置屏幕高有多少30像素
+pygame.init()  # initialize some modules
 # set the width and height of window
 screen = pygame.display.set_mode((FRAME_WIDTH * screen_grid_width, FRAME_WIDTH * screen_grid_high))
-# set screen caption
-pygame.display.set_caption("English Vocabulary Practice")
-# show the Chinese fonts on the display
-CHINESE_FONT = pygame.font.Font('Fonts/STKAITI.TTF', 25)
-INTRO_FONT = pygame.font.Font('Fonts/STKAITI.TTF', 25)
-SCORE_FONT = pygame.font.Font('Fonts/STKAITI.TTF', 50)
-# show  English font on the display
-OTHER_FONT = pygame.font.Font('Fonts/arial.ttf', 25)
-# shoe the phonetic font on the display
-PHONETIC_FONT = pygame.font.Font('Fonts/Lucida-Sans-Unicode.ttf', 25)
+pygame.display.set_caption("English Vocabulary Practice")  # set screen caption
+# 游戏字体一体化
+CHINESE_FONT = pygame.font.Font('Fonts/STKAITI.TTF', 25)  # show the Chinese fonts on the display
+SCORE_FONT = pygame.font.Font('Fonts/STKAITI.TTF', 50)  # show the score on the display
+OTHER_FONT = pygame.font.Font('Fonts/arial.ttf', 25)  # show  English font on the display
+PHONETIC_FONT = pygame.font.Font('Fonts/Lucida-Sans-Unicode.ttf', 25)  # show the phonetic font on the display
 
 
 # ------------------------------------------------------------------------------------------
-
-
-# 保存玩家的游戏记录代码
+# 在每一轮游戏结束之后都要保存游戏记录，并清除已经保存得记录
 def save_game_record():
-    global total_spent_words
-    # 玩家本次玩游戏一共玩了多少分钟
+    global total_spent_words, words_list_known, task_words_known
     player_played_game = (time.perf_counter() - t0) / 60
-    # 记录本论游戏玩家的游戏记录
-    review_list = [str(TODAY), round(player_played_game, 2), current_score, current_remembered_words]
+    # 记录本论游戏玩家的游戏记录：1： 玩游戏的日期 2：玩家玩了多长时间
+    review_list = [str(datetime.date.today()), round(player_played_game, 2), current_score, current_remembered_words]
     total_spent_words += player_played_game
     # 总共记忆的单词，和总的游戏时间
     record_list[0] = total_remembered_words + current_remembered_words
@@ -92,51 +72,31 @@ def save_game_record():
     delete_taskwords_xls(word_file_path, words_list_known)
     # 英语单词，和翻译都要写进已经记住的单词库里面
     write_knownwords_xls(word_review_file_path, words_list_known, task_words_known)
-    sys.exit(0)
+    words_list_known = []  # 本轮游戏已经记忆的单词列表清零 （英语）
+    task_words_known = []  # 本轮游戏已经记忆的单词列表清零（汉语）
 
 
-# initial
 def game_init():
     # global variate
-    global snake, alphabet, alphabet_group, snake_speed, background_music_setting, \
-        tip_group, track_spelling_setting, words_list, task_words, \
-        tip, wrong_words_num_setting, continuous_correct_alphabet, \
-        words_phonetic_setting, tip_show_setting, train_words_num_setting, word_file_path, \
-        phonetic_file_path, pronunciation_file_path, train_words_number, word_review_file_path
-
-    # 初始化蛇
-    snake = Snake_body_Sprite()
-    # 先把蛇头添加进去
-    snake.creat_snake()
-
-    # 创建一个正确单词的组
-    alphabet_group = pygame.sprite.Group()
-    alphabet = MySprite_food()
-    alphabet.load_multi_frames("Game_Pictures/lower_letter.png", FRAME_WIDTH, FRAME_WIDTH, 13)
-    alphabet_group.add(alphabet)
-
+    global snake, snake_speed, background_music_setting, track_spelling_setting, train_words_number, alphabet, alphabet_group, \
+        wrong_words_num_setting, words_phonetic_setting, tip_show_setting, train_words_num_setting, words_list, word_file_path, \
+        phonetic_file_path, pronunciation_file_path, word_review_file_path, continuous_correct_alphabet, task_words
+    # -------------------------------------------------------------------------------------------------------
     # 第一页的菜单，背景和标题背景都会有默认值很丑，所以这句话的意思是给他全部弄成透明的就不会在游戏上显示了
     mytheme_fix = pygame_menu.themes.Theme(background_color=(0, 0, 0, 0), title_background_color=(0, 0, 0, 0))
     # 实例化第一层菜单
     game_fix_menu = pygame_menu.Menu(400, 400, '', theme=mytheme_fix, menu_position=(80, 60))
-    # 设置第二层菜单主题格式
-    mytheme1 = pygame_menu.themes.Theme(background_color=(0, 0, 0, 0), title_background_color=(0, 0, 0, 0))
     # 第二层菜单的位置和大小
-    game_first_mune = pygame_menu.Menu(400, 200, '', theme=mytheme1, menu_position=(65, 60))
+    game_first_mune = pygame_menu.Menu(400, 200, '', theme=mytheme_fix, menu_position=(65, 60))
+
     # 设置本次训练的单词个数
-    train_words_num_setting = game_fix_menu.add_text_input('单词数(5-15): ', default='9', font_name='Fonts/STKAITI.TTF',
+    train_words_num_setting = game_fix_menu.add_text_input('单词数(10-20): ', default='10', font_name='Fonts/STKAITI.TTF',
                                                            selection_color=(255, 0, 0), background_color=(0, 255, 0))
-    # 选择词库
-    grade_setting = game_fix_menu.add_selector('选择词库',
-                                               [('三年级', screen), ('四年级', screen), ('五年级', screen), ('六年级', screen),
-                                                ('初一', screen), ('初二', screen), ('初三', screen)],
-                                               font_name='Fonts/STKAITI.TTF',
-                                               selection_color=(255, 0, 0), background_color=(0, 255, 0))
     # 进入游戏
     game_fix_menu.add_button('进入游戏', game_first_mune, font_name='Fonts/STKAITI.TTF', background_color=(0, 255, 0),
                              selection_color=(255, 0, 0))
-
-    # 第二页游戏设置里的背景图片，设置一个主题
+    # -------------------------------------------------------------------------------------------------------
+    # 游戏设置里面的所有菜单
     myimage = pygame_menu.baseimage.BaseImage('Game_Pictures/game_intro.jpg')
     mytheme = pygame_menu.themes.Theme(background_color=myimage, title_background_color=(0, 0, 0, 0),
                                        title_font_color=(255, 0, 0))
@@ -167,9 +127,8 @@ def game_init():
     # 保存设置，并返回上一级菜单
     game_setting_mune.add_button('保存并返回', pygame_menu.events.BACK,
                                  font_name='Fonts/STKAITI.TTF', selection_color=(255, 0, 0))
-    # 第一页菜单所展示的内容
-    # game_first_mune.add_button('复习模式', main_game, True, font_name='Fonts/STKAITI.TTF', background_color=(0, 255, 0),
-    #                           selection_color=(255, 0, 0))
+    # ------------------------------------------------------------------------------------------------------------------
+    # 第二页里面的选项
     game_first_mune.add_button('复习模式', English_review, screen, font_name='Fonts/STKAITI.TTF',
                                background_color=(0, 255, 0),
                                selection_color=(255, 0, 0))
@@ -177,90 +136,69 @@ def game_init():
                                selection_color=(255, 0, 0))
     game_first_mune.add_button('游戏设置', game_setting_mune, font_name='Fonts/STKAITI.TTF',
                                background_color=(0, 255, 0), selection_color=(255, 0, 0))
-    game_first_mune.add_button('游戏记录', game_record, screen, INTRO_FONT, font_name='Fonts/STKAITI.TTF',
+    game_first_mune.add_button('游戏记录', game_record, screen, CHINESE_FONT, font_name='Fonts/STKAITI.TTF',
                                background_color=(0, 255, 0), selection_color=(255, 0, 0))
-    game_first_mune.add_button('游戏帮助', game_intro, screen, INTRO_FONT, font_name='Fonts/STKAITI.TTF',
+    game_first_mune.add_button('游戏帮助', game_intro, screen, CHINESE_FONT, font_name='Fonts/STKAITI.TTF',
                                background_color=(0, 255, 0), selection_color=(255, 0, 0))
-    game_first_mune.add_button('结束游戏', save_game_record, font_name='Fonts/STKAITI.TTF', background_color=(0, 255, 0),
+    game_first_mune.add_button('结束游戏', sys.exit, 0, font_name='Fonts/STKAITI.TTF', background_color=(0, 255, 0),
                                selection_color=(255, 0, 0))
-
-    # play the background music
-    game_audio("game_sound/bgm.wav", volumn=0.3, times=-1)
-
-    # load the background of first menu
-    game_bgp = pygame.image.load("Game_Pictures/Snake_Begin_UI.png").convert_alpha()
+    snake = Snake_body_Sprite()  # 初始化蛇头，还有蛇会的一些动作
+    # 创建一个正确单词的组
+    alphabet_group = pygame.sprite.Group()
+    alphabet = MySprite_food()
+    alphabet.load_multi_frames("Game_Pictures/lower_letter.png", FRAME_WIDTH, FRAME_WIDTH, 13)
+    alphabet_group.add(alphabet)
+    game_bgp = pygame.image.load(
+        "Game_Pictures/Snake_Begin_UI.png").convert_alpha()  # load the background of first menu
     # 有时候图片太大，需要调整图片大小符合目标屏幕大小
     game_bgp = pygame.transform.scale(game_bgp, (FRAME_WIDTH * screen_grid_width, FRAME_WIDTH * screen_grid_high))
-
-    while True:
+    # ------------------------------------------------------------------------------------------------------------------
+    # 抓举菜单里所有的更新选项，并且第一次读取要学习的单词列表
+    menu_running = True
+    while menu_running:
         screen.blit(game_bgp, (0, 0))
         if train_words_num_setting.get_selected_time():
-            # 取得玩家设置的单词数
             train_words_number = game_play_setting(train_words_num_setting)
-            # 选择词库
-            if grade_setting.get_value()[0][0] == '三年级':
-                word_file_path = 'words_pool/three_grade/three_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/three_grade/three_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/three_grade/'
-                word_review_file_path = 'words_pool/three_grade/three_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '四年级':
-                word_file_path = 'words_pool/four_grade/four_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/four_grade/four_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/four_grade/'
-                word_review_file_path = 'words_pool/four_grade/four_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '五年级':
-                word_file_path = 'words_pool/five_grade/five_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/five_grade/five_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/five_grade/'
-                word_review_file_path = 'words_pool/five_grade/five_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '六年级':
-                word_file_path = 'words_pool/six_grade/six_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/six_grade/six_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/six_grade/'
-                word_review_file_path = 'words_pool/six_grade/six_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '初一':
-                word_file_path = 'words_pool/seven_grade/seven_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/seven_grade/seven_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/seven_grade/'
-                word_review_file_path = 'words_pool/seven_grade/seven_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '初二':
-                word_file_path = 'words_pool/eight_grade/eight_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/eight_grade/eight_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/eight_grade/'
-                word_review_file_path = 'words_pool/eight_grade/eight_grade_known.xls'
-            elif grade_setting.get_value()[0][0] == '初三':
-                word_file_path = 'words_pool/nine_grade/nine_grade_unknown.xls'
-                phonetic_file_path = 'Words_phonetic/nine_grade/nine_grade_phonetic.xls'
-                pronunciation_file_path = 'Speech_EN/nine_grade/'
-                word_review_file_path = 'words_pool/nine_grade/nine_grade_known.xls'
+            # 选择本轮要学习的单词
+            word_file_path = 'words_pool/three_grade/three_grade_unknown.xls'
+            phonetic_file_path = 'Words_phonetic/three_grade/three_grade_phonetic.xls'
+            pronunciation_file_path = 'Speech_EN/three_grade/'
+            word_review_file_path = 'words_pool/three_grade/three_grade_known.xls'
             # 得到单词，和翻译 是分开的
-            words_list, task_words = read_taskwords_xls(word_file_path,
-                                                        train_words_number)
+            words_list, task_words = read_taskwords_xls(word_file_path, train_words_number)
             # 这是一个字典 第几个单词-第几个字母：以及对应单词的字母索引
             continuous_correct_alphabet = built_spelling_dic(words_list, ALPHABET_LIST)
-
         # 获得当前所有事件
         events = pygame.event.get()
-        # 如果第一页菜单处于运行状态
-        if game_fix_menu.is_enabled():
-            # 抓取菜单的改变
-            game_fix_menu.update(events)
-            # 将改变后的菜单画到桌面上
-            game_fix_menu.draw(screen)
-        # 整个游戏更新
-        pygame.display.update()
+        for event in events:
+            if event.type == pygame.QUIT:
+                exit()
+        game_fix_menu.update(events)  # 抓取菜单的改变
+        game_fix_menu.draw(screen)  # 将改变后的菜单画到桌面上
+        pygame.display.update()  # 整个游戏更新
 
 
 # define pause and continue game
 def checkquit(events):
-    global pause, main_game_running
+    global pause, main_game_running, player_spelling, game_over, words_list, \
+        task_words, current_score, continuous_correct_alphabet, alphabet_group, alphabet
     for event in events:
-        if event.type == pygame.QUIT:
-            if game_over == False:
-                save_game_record()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 main_game_running = False
+                # 如果第一轮学习已经结束，重新读取单词列表
+                if game_over:
+                    player_spelling = []
+                    current_score = 0  # 每一轮学习结束，分数清零
+                    # 得到单词，和翻译 是分开的
+                    words_list, task_words = read_taskwords_xls(word_file_path, train_words_number)
+                    # 这是一个字典 第几个单词-第几个字母：以及对应单词的字母索引
+                    continuous_correct_alphabet = built_spelling_dic(words_list, ALPHABET_LIST)
+                    # 创建一个正确单词的组
+                    alphabet_group = pygame.sprite.Group()
+                    alphabet = MySprite_food()
+                    alphabet.load_multi_frames("Game_Pictures/lower_letter.png", FRAME_WIDTH, FRAME_WIDTH, 13)
+                    alphabet_group.add(alphabet)
             elif event.key == pygame.K_p:
                 pause = False
             elif event.key == pygame.K_SPACE:
@@ -272,26 +210,26 @@ def checkquit(events):
                 pygame.mixer.music.play()
 
 
-def main_game(review_mode=False):
-    global highest_words, highest_score, task_words, \
-        pause, record_list, words_number, game_over, \
-        current_score, words_lock, continuous_correct_alphabet, \
+def main_game():
+    global highest_words, highest_score, continuous_correct_alphabet, \
+        pause, record_list, words_list_known, task_words_known, eating_spelling, words_number, \
+        current_score, alphabet, task_words, spell_list, player_spelling, game_over, \
         current_remembered_words, main_game_running, words_list, \
         phonetic_file_path, pronunciation_file_path, word_review_file_path
-    # 得到玩家设置的蛇的移动速度
-    snake_moving_speed = game_play_setting(snake_speed)
 
-    # 背景音乐设置
+    game_over = False  # 游戏结束开关
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # 每次重新进入游戏都要知道玩家进行了什么设置
+    # 得到BGM的设置是什么
+    snake_moving_speed = game_play_setting(snake_speed)  # 得到玩家设置的蛇的移动速度
     bgm = game_play_setting(background_music_setting)
     if bgm[0][0] == 'YES':
-        # 先得把开始设置的那个背景音乐停止
-        pygame.mixer.stop()
-        # 才能开始新的，不然就会有双重奏乐
-        game_audio("game_sound/bgm.wav", volumn=0.3, times=-1)
-    # mute the bgm
+        pygame.mixer.stop()  # 先得把开始设置的那个背景音乐停止
+        game_audio("game_sound/bgm.wav", volumn=0.3, times=-1)  # 才能开始新的，不然就会有双重奏乐
+    # 静音游戏背景音乐
     elif bgm[0][0] == 'NO':
         pygame.mixer.stop()
-
     # 单词提示 ‘yes’ 'no'
     prompt_show = game_play_setting(tip_show_setting)
     # 拼写追踪 ‘yes’ 'no'
@@ -300,12 +238,6 @@ def main_game(review_mode=False):
     word_phone = game_play_setting(words_phonetic_setting)
     # 迷惑字母个数
     wrong_letters_num = int(game_play_setting(wrong_words_num_setting))
-
-    # 复习模式 训练单词数相同 但是单词库变了 这块在切换上面还有问题
-    if review_mode == True:
-        words_list, task_words = read_taskwords_xls(word_review_file_path, int(train_words_number))
-        continuous_correct_alphabet = built_spelling_dic(words_list, ALPHABET_LIST)
-
     # 默认需要提示，然后设置一个精灵库 在这里修改字母照片
     if prompt_show[0][0] == 'YES':
         # create tip sprite
@@ -313,29 +245,24 @@ def main_game(review_mode=False):
         tip = MySprite_food()
         tip.load_multi_frames("Game_Pictures/health.png", FRAME_WIDTH, FRAME_WIDTH, 1)
         tip_group.add(tip)
-
     # 根据迷惑单词个数创造精灵
     random_alphabet_group = pygame.sprite.Group()
     for i in range(wrong_letters_num):
         random_alphabet = MySprite_food()
         random_alphabet.load_multi_frames("Game_Pictures/lower_letter.png", FRAME_WIDTH, FRAME_WIDTH, 13)
         random_alphabet_group.add(random_alphabet)
-
-    # game_over switch
-    game_over = False
-    # pause and play switch
-    pause = False
+    # ------------------------------------------------------------------------------------------------------------------
+    # 游戏基本参数的设置
+    pause = False  # 是否暂停
     # 下面这两个参数完全是为了避免出现的精灵位置和蛇偶然重叠
     food_snake_conflict = False
     count = 0
-    # 追踪蛇已经吃的字母
-    eating_spelling = list()
     # 下面的参数是为了设置提示
     tip_time = 0
     tip_show = False
     # 玩家有没有用提示？
     tip_use = False
-    # 控制分数
+    # 控制蛇头那个分数的展示
     score_show_time = 0
     score_show = False
     correct_increase = False
@@ -343,9 +270,9 @@ def main_game(review_mode=False):
     tip_decrease = False
     # 主要是控制结束的那个声音，不然游戏结束了那个声音会一直响
     write_button = False
-    # 防止重复写
-    game_over_buzz = True
+    # 总的游戏执行程序
     main_game_running = True
+
     while main_game_running:
         # game clock
         timer = pygame.time.Clock()
@@ -354,42 +281,39 @@ def main_game(review_mode=False):
         # get kinds of events
         events = pygame.event.get()
         checkquit(events)
-        # update drawing paper every loop
-        # it seems like replace the last picture with new picture
-        screen.fill((255, 255, 255))
-        # 记录游戏运行的时间
+        # 记录游戏运行的时间，很重要，需要控制游戏进程
         gameplay_time = pygame.time.get_ticks()
         # 得到玩家的最高分数和最高单词记录
         record_list[2] = highest_score
         record_list[3] = highest_words
+        # 画游戏的网格背景
         grid_bg = pygame.image.load("Game_Pictures/grid_bgb.png").convert_alpha()
         screen.blit(grid_bg, (0, 180))
-        # 更新记录
+        # 最高分数和最高单词记录
         if current_score > int(highest_score):
             highest_score = current_score
         if current_remembered_words > int(highest_words):
             highest_words = current_remembered_words
-
-        # once out of words, then game over
-        if words_number == len(task_words) and game_over_buzz == True:
-            words_number = 0
-            game_over = True
+        # 一轮游戏结束， 改变一些参数，并保存记录
+        if words_number == len(task_words):
+            game_over = True  # 游戏结束，显示游戏结束的内容
+            words_number = 0  # 记住的游戏单词也清零
             write_button = True
+            save_game_record()  # 保存游戏记录
 
-        # once game is paused
+        # 当游戏暂停的时候显示的东西
         if pause:
             pygame.mixer.pause()  # Pause BGM
             pause_pic = pygame.image.load("Game_Pictures/pause.png").convert_alpha()
             screen.blit(pause_pic, (150, 400))
 
-        # ----------------------------------------------------------------------------------------------------------------------
-        # 以下代码都是为了控制蛇的方向，
+        # --------------------------------------------------------------------------------------------------------------
+        # 如果没有暂停
         else:
-            pygame.mixer.unpause()  # Unpause BGM
-            # Snake appear from another wall once contact walls
-            x = snake.segments[0].x_coordinate // 30
-            y = snake.segments[0].y_coordinate // 30
-            # appear from other side when contact wall
+            pygame.mixer.unpause()  # 解除音乐暂停
+            x = snake.segments[0].x_coordinate // 30  # 得到蛇头所在的x的坐标
+            y = snake.segments[0].y_coordinate // 30  # 得到蛇头所在的y的坐标
+            # 触碰到墙的会从另外的一面出来
             if x < 0:
                 snake.segments[0].x_coordinate = 21 * 30
             elif x >= 22:
@@ -398,7 +322,7 @@ def main_game(review_mode=False):
                 snake.segments[0].y_coordinate = 21 * 30
             elif y >= 22:
                 snake.segments[0].y_coordinate = 30 * 6
-            # control the directions of snake
+            # 控制蛇的方向
             for event in events:
                 if 0 <= x <= 22 and 6 <= y <= 22:
                     if event.type == pygame.KEYDOWN:
@@ -410,12 +334,11 @@ def main_game(review_mode=False):
                             snake.velocity = two_Variate(-1, 0)
                         elif event.key == pygame.K_d and snake.velocity.first_variate != -1:  # right
                             snake.velocity = two_Variate(1, 0)
-            snake_head_direction(snake, snake.velocity)  # get the direction of snake
-            snake.snake_head.head_update(gameplay_time, 100)  # update the snake' head frame
-            # ----------------------------------------------------------------------------------------------------------------------
-            # if not game over
+            snake_head_direction(snake, snake.velocity)  # 获得蛇的行动方向
+            snake.snake_head.head_update(gameplay_time, 100)  # 蛇的更新
+            # ----------------------------------------------------------------------------------------------------------
+            # 如何没有没有暂停，如果游戏没有结束
             if not game_over:
-
                 # 游戏没有结束，必须先判断坐标有没有重叠
                 while not food_snake_conflict:
                     # 得到蛇头的坐标
@@ -463,24 +386,17 @@ def main_game(review_mode=False):
 
                 #   如果吃了头部触碰到了正确的字母
                 if len(pygame.sprite.spritecollide(snake.segments[0], alphabet_group, False)) > 0:
-                    # 获得当前正确字母
-                    current_frame = alphabet.current_frame
-                    score_show_time = gameplay_time  # 得到当前得游戏事件
-                    score_show = True
-                    correct_increase = True
-
-                    # 得到当前碰撞的字母
-                    a = Snakebody_alphabet(current_frame)
-                    # 记录单词拼写到哪里了只记录正确的
-                    spell_list.append(ALPHABET_LIST[current_frame])
-                    # 记录吃了的字母不管对错
-                    eating_spelling.append(ALPHABET_LIST[current_frame])
-                    # 添加到蛇的尾部
-                    snake.add_segment(a)
+                    current_frame = alphabet.current_frame  # 获得当前正确字母
+                    score_show_time = gameplay_time  # 得到当前得游戏时间
+                    score_show = True  # 展示分数
+                    correct_increase = True  # 蛇的头部分数增加
+                    a = Snakebody_alphabet(current_frame)  # 得到当前碰撞的字母是什么
+                    spell_list.append(ALPHABET_LIST[current_frame])  # 记录单词拼写到哪里了只记录正确的
+                    eating_spelling.append(ALPHABET_LIST[current_frame])  # 记录吃了的字母不管对错
+                    snake.add_segment(a)  # 添加到蛇的尾部
                     # 更新到下一个单词
                     alphabet.target_update(continuous_correct_alphabet, gameplay_time + 1, 1, x_position_list,
                                            y_position_list)
-
                     # 保证扰乱的字母和正确的字母各不相同，错误的字母也要更新
                     wrong_letters_image = [1, 1]
                     # 三个字母不能相同，只有相同就必须重新选择
@@ -495,7 +411,6 @@ def main_game(review_mode=False):
                             wrong_letters_postion += 1
                             # 将错误字母的图片都保存起来
                             wrong_letters_image.append(sprite.random_frame)
-
                     # 如果有提示的话，提示更新
                     if prompt_show[0][0] == 'YES':
                         tip.tip_update(gameplay_time + 100, 100, x_position_list, y_position_list)
@@ -504,22 +419,17 @@ def main_game(review_mode=False):
                     # 分数加10分
                     current_score += 10
 
-
-                # ----------------------------------------------------------------------------------------------------------------------
+                # -----------------------------------------------------------------------------------------------------
                 #   如果蛇的头部碰到了错误的字母
                 elif len(pygame.sprite.spritecollide(snake.segments[0], random_alphabet_group, False, False)) > 0:
                     # 到底碰到了那个错误字母
                     collide_sprite = pygame.sprite.spritecollide(snake.segments[0], random_alphabet_group, False, False)
-                    score_show_time = gameplay_time  # 得到当前得游戏事件
-                    score_show = True
-                    wrong_decrease = True
-                    # wrong buzz
-                    game_audio("game_sound/wrong.wav")
-                    # 得到碰撞的那个字母的编号
-                    random_frame = collide_sprite[0].random_frame
-                    # 即使吃错了也要加进去
-                    eating_spelling.append(ALPHABET_LIST[random_frame])
-                    b = wrong_alphabet(random_frame)
+                    score_show_time = gameplay_time  # 得到当前得游戏时间
+                    score_show = True  # 展示分数
+                    wrong_decrease = True  # 分数减展示
+                    game_audio("game_sound/wrong.wav")  # 错误字母的声音
+                    random_frame = collide_sprite[0].random_frame  # 得到碰撞的那个字母的编号
+                    eating_spelling.append(ALPHABET_LIST[random_frame])  # 即使吃错了也要加进去
 
                     # 保证出现位置不会重复，在这只关心错误字母的更新
                     wrong_letters_image = [1, 1]
@@ -541,34 +451,26 @@ def main_game(review_mode=False):
                 #   如果触碰到了提示
                 if prompt_show[0][0] == 'YES':
                     if len(pygame.sprite.groupcollide(snake.segments, tip_group, False, False)) > 0:
-                        c = pygame.sprite.spritecollide(snake.segments[0], tip_group, False,
-                                                        False)
-                        # print correct spelling of current task
-                        tip_show = True
-                        tip_time = gameplay_time
+                        tip_show = True  # 提示展示
+                        tip_time = gameplay_time  # 提示展示的时间
                         score_show_time = gameplay_time  # 得到当前得游戏时间
-                        score_show = True
-                        tip_decrease = True
+                        score_show = True  # 展示分数
+                        tip_decrease = True  # 提示分数增加
                         # 到蛇的第二个就开始消失计时
                         if len(pygame.sprite.spritecollide(snake.segments[1], tip_group, False, False)) > 0:
-                            # score -30
-                            current_score -= 30
-                            # tip update
-                            tip.tip_update(gameplay_time + 100, 100, x_position_list, y_position_list)
-                            # tip buzz
-                            game_audio("game_sound/health.wav")
+                            current_score -= 30  # 当前分数减30分
+                            tip.tip_update(gameplay_time + 100, 100, x_position_list, y_position_list)  # 提示更新
+                            game_audio("game_sound/health.wav")  # 提示的声音
                 # 游戏没有结束，首先移动蛇
                 snake.snake_moving(gameplay_time, snake_moving_speed)
-        # ----------------------------------------------------------------------------------------------------------------------
-        # 游戏结束后的代码
+        # --------------------------------------------------------------------------------------------------------------
+        # 以下需要对游戏结束后的一些事情进行处理
         if game_over:
             if write_button:  # 因为游戏结束了会一直循环这个代码，所以这个变量的功能是为了让下面循环的代码只执行一次
-                pygame.mixer.stop()  # 主游戏背景要结束
-                # game over buzz
-                game_audio("game_sound/game_over.wav")
-                game_over_buzz = False
+                pygame.mixer.stop()  # 主游戏背景音乐要结束
+                game_audio("game_sound/game_over.wav")  # 游戏结束的背景音乐
                 del snake.segments[2:]  # 每次游戏结束之后，要清除蛇后面的东西
-                write_button = False  # 在结尾改为FALSE
+                write_button = False  # 在结尾改为FALSE，只执行一次
             # 游戏结束时的背景板
             game_over_image = pygame.image.load("Game_Pictures/game_intro.jpg").convert_alpha()
             game_over_image = pygame.transform.scale(game_over_image, (FRAME_WIDTH * 27, FRAME_WIDTH * 24))
@@ -584,20 +486,20 @@ def main_game(review_mode=False):
             print_result(CHINESE_FONT, 200, FRAME_WIDTH * 4, task_words)
             print_text(CHINESE_FONT, 400, FRAME_WIDTH * 2, "你的拼写")
             print_result(CHINESE_FONT, 400, FRAME_WIDTH * 4, player_spelling)
-        # ----------------------------------------------------------------------------------------------------------------------
+        # --------------------------------------------------------------------------------------------------------------
+        #  如果游戏还在运行
         else:
+            # 画游戏上方的背景
             title_bg = pygame.image.load("Game_Pictures/title-bgd.png").convert_alpha()
             screen.blit(title_bg, (0, 0))
-            # show tip
+            # 要不要展示提示，及其展示的时间
             print_text(CHINESE_FONT, FRAME_WIDTH * 14, 75, "提示: ")
-
-            if tip_show == True:
+            if tip_show:
                 print_text(OTHER_FONT, FRAME_WIDTH * 16, 75,
                            words_list[int(alphabet.current_word_number) - 1],
                            color=(255, 0, 0))
-                # flay us if you use tip
-                tip_use = True
-                # 1.5S之后提示消失
+                tip_use = True  # 提示已经被使用
+                # 1.5秒以后提示消失
                 if gameplay_time > tip_time + 1500:
                     tip_show = False
 
@@ -610,18 +512,21 @@ def main_game(review_mode=False):
                     score_position_y = 0
                     score_position_x = 30
                 if correct_increase:
-                    print_text(SCORE_FONT, snake.snake_head.x_coordinate+score_position_x, snake.snake_head.y_coordinate + score_position_y, '+10')
+                    print_text(SCORE_FONT, snake.snake_head.x_coordinate + score_position_x,
+                               snake.snake_head.y_coordinate + score_position_y, '+10')
                 elif wrong_decrease:
-                    print_text(SCORE_FONT, snake.snake_head.x_coordinate+score_position_x, snake.snake_head.y_coordinate + score_position_y, '-10')
+                    print_text(SCORE_FONT, snake.snake_head.x_coordinate + score_position_x,
+                               snake.snake_head.y_coordinate + score_position_y, '-10')
                 elif tip_decrease:
-                    print_text(SCORE_FONT, snake.snake_head.x_coordinate+score_position_x, snake.snake_head.y_coordinate + score_position_y, '-30')
-                if gameplay_time > score_show_time + 450:
+                    print_text(SCORE_FONT, snake.snake_head.x_coordinate + score_position_x,
+                               snake.snake_head.y_coordinate + score_position_y, '-30')
+                if gameplay_time > score_show_time + 450:  # 分数展示450毫秒，并初始化原来的参数
                     score_show = False
                     correct_increase = False
                     wrong_decrease = False
                     tip_decrease = False
 
-            # print current state
+            # 输出当前任务是什么
             print_text(CHINESE_FONT, FRAME_WIDTH * 6 + 2, 15,
                        "当前任务: " + task_words[int(alphabet.current_word_number) - 1])
 
@@ -667,9 +572,9 @@ def main_game(review_mode=False):
                 # record word from words_list if do not make mistake，如果没有拼错，就完全添加到review里面
                 if words_list[int(alphabet.current_word_number) - 2] not in words_list_known:
                     if ''.join(eating_spelling) == words_list[
-                        int(alphabet.current_word_number) - 2] and tip_use == False:
-                        words_list_known.append(words_list[int(alphabet.current_word_number) - 2])
-                        task_words_known.append(task_words[int(alphabet.current_word_number) - 2])
+                                                            int(alphabet.current_word_number) - 2] and tip_use == False:
+                        words_list_known.append(words_list[int(alphabet.current_word_number) - 2])  # 添加到已经记忆的单词列表
+                        task_words_known.append(task_words[int(alphabet.current_word_number) - 2])  # 添加到已经记忆的单词列表
                         current_remembered_words += 1
                 # clear the two list once task change
                 player_spelling.append(''.join(eating_spelling))
