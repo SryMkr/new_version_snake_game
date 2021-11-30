@@ -1,9 +1,9 @@
-'''
+"""
 author: SryMkr
 date:2021.11.6
 this function is to deal with the words
 该文件要在游戏函数中使用
-'''
+"""
 
 # import packages
 from xlutils.copy import copy
