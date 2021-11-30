@@ -1,4 +1,4 @@
-'''
+"""
 author SryMkr
 date: 2021.11.6
 the function of this library is to download words' phonetics
@@ -6,7 +6,7 @@ the function of this library is to download words' phonetics
 最好的办法就是我们已经下载好了，尽量网络的还有机器的依赖
 本算法最基本的逻辑结构就是一个单词一个音标写到excel中,并且也是在xls中读取单词音标,仅限与做实验使用
 本文件中有一个函数是要在游戏中使用，在毕业之前本页函数没有任何需要改的地方
-'''
+"""
 
 # import packages
 import os
@@ -18,7 +18,7 @@ import xlrd
 
 # ----------------------------------------------------------------------------------------------------------------------
 # write format: list[word,phonetic] into excel.xls 该函数仅限于本页代码使用
-# 本代码的作用是将下载好的单词和音标写到文件中 是下载一组写一组
+# 本代码的作用是将下载好的单词和音标写到文件中 是下载一组写一组, 一个英语单词和一个音标为一组
 def write_excel_xls_append(path, value):
     # get the len of value 只有单词和音标所以总为2
     index = len(value)
@@ -73,7 +73,7 @@ def read_excel_xls(path, word):
 
 # 以下代码是下载牛津的音标
 # phonetic alphabet class
-class OxfordDictionary():
+class OxfordDictionary:
     # initialize empty string 初始化一个空的字符串
     phoneticSpelling = ""
 
