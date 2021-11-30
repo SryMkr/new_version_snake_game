@@ -104,7 +104,7 @@ def game_init():
                                          theme=mytheme, menu_id='game_setting')
 
     # 设置干扰选项
-    wrong_words_num_setting = game_setting_mune.add_text_input('干扰选项(1-3): ', default='1',
+    wrong_words_num_setting = game_setting_mune.add_text_input('干扰选项(1-2): ', default='1',
                                                                font_name='Fonts/STKAITI.TTF',
                                                                selection_color=(255, 0, 0))
 
